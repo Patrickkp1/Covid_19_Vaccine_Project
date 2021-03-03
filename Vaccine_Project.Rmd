@@ -211,7 +211,7 @@ agrestiCaffo <- function(x1,n1,x2,n2,alpha=.05) {
   myParms$pValueGgtP  <- pValueGgtP;
   return(myParms)
 }
-agrestiCaffo(34/36, 34, 2/36, 2)
+agrestiCaffo(34, 36, 2, 36)
 
 
 agrestiCoull <- function(x,n,alpha = .05) {
@@ -255,11 +255,11 @@ mean(not_dose_4_data$IgGpre)
 
 
 # Second bonus question solved through k-clustering means. 
-library(dplyr)
-immune_test %>% select(-c(dose)) %>% kmeans(centers = 5) -> kcluster
-immune_test_cluster$dose = as.factor(immune_test_cluster$dose)
-immune_test_cluster <- data.frame(immune_test, cluster=factor(kcluster$cluster))
-ggplot(immune_test_cluster, aes(x=IgG29, y=VNT, color=cluster, 
-    shape=as.factor(dose))) + geom_point()
+
+immune_cluster <- kmeans(immune_test[, 1:3], centers = 5, nstart = 20)
+immune_cluster = data.frame(immune_test, cluster = factor(immune_cluster$cluster))
+ggplot(immune_cluster, aes(x = IgG29, y = VNT, color = cluster, 
+                           shape = as.factor(dose))) + geom_point()
+
 ```
 
