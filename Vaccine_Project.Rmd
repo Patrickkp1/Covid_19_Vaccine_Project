@@ -1,0 +1,265 @@
+---
+title: "Vaccine Project"
+author: "Patrick Poleshuk"
+date: "3/2/2021"
+output: 
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggplot2)
+immune_test = read.csv("/Users/patrickpoleshuk/Downloads/immuneResponse.csv", sep = ",", header = T)
+
+means <- aggregate(IgGpre ~  dose, data = immune_test, mean)
+means$IgGpre <- formatC(means$IgGpre, digits = 3)
+g <- ggplot(data = immune_test, aes(x = as.factor(dose), y = IgGpre, fill = as.factor(dose))) + 
+  geom_point() + geom_boxplot() + stat_summary(fun.y=mean, color="darkred", geom="point", 
+               shape=16, size=3) + geom_text(data = means, aes(label=IgGpre, y = as.numeric(IgGpre) +.1))
+g <- g + labs(x = "Dose Group (1-5)", y = "Log Immunoglobulin G Prior to Inoculation", 
+         title = "Plot of Log Immunoglobulin G Prior to Inoculation By Dose Group")
+g <- g + stat_summary(geom = "errorbar")
+g
+
+means <- aggregate(IgG29 ~  dose, data = immune_test, mean)
+means$IgG29 <- formatC(means$IgG29, digits = 3)
+
+g <- ggplot(data = immune_test, aes(x = as.factor(dose), y = IgG29, fill = as.factor(dose))) + 
+  geom_point() + geom_boxplot() + theme_dark() + stat_summary(geom = "errorbar") 
+g <- g + stat_summary(fun.y=mean, color="darkred", geom="point", 
+               shape=16, size=3) + geom_text(data = means, aes(label=IgG29, y = as.numeric(IgG29) +.1))
+g <- g + labs(x = "Dose Group (1-5)", y = "Log Immunoglobulin G 29 Days After Inoculation", 
+         title = "Plot of Log Immunoglobulin G 29 Days After to Inoculation By Dose Group")
+g
+
+means <- aggregate(VNT ~  dose, data = immune_test, mean)
+means$VNT <- formatC(means$VNT, digits = 3)
+
+g <- ggplot(data = immune_test, aes(x = as.factor(dose), y = VNT, fill = as.factor(dose))) + 
+  geom_point() + geom_boxplot() + theme_linedraw() + stat_summary(geom = "errorbar")
+g <- g + stat_summary(fun.y=mean, color="darkred", geom="point", 
+               shape=16, size=3) + geom_text(data = means, aes(label=VNT, y = as.numeric(VNT) +.1))
+g <- g + labs(x = "Dose Group (1-5)", y = "Log Immunoglobulin G 29 Days After Inoculation", 
+         title = "Plot of Virus Neutralizing Titers By Dose Group")
+g 
+var = c("IgGpre", "IgG29", "VNT")
+outlist = c()
+fn_list <- function(x){
+  outlist = c(outlist, mean(x), sd(x), IQR(x), median(x))
+}
+l = tapply(immune_test[, var[1]], immune_test[, 4], fn_list)
+IgGPRE_df = as.data.frame(l)
+
+for (i in 1:NROW(IgGPRE_df)){
+  rownames(IgGPRE_df)[i] <- paste0("Dose Group: ", i) 
+}
+colnames(IgGPRE_df) <- c("MEAN        SD         IQR        MEDIAN")
+IgGPRE_df
+
+s = tapply(immune_test[, var[2]], immune_test[, 4], fn_list)
+IgG29_df = as.data.frame(s)
+
+for (i in 1:NROW(IgG29_df)){
+  rownames(IgG29_df)[i] <- paste0("Dose Group: ", i) 
+}
+colnames(IgG29_df) <- c("MEAN        SD         IQR        MEDIAN")
+IgG29_df
+
+t = tapply(immune_test[, var[3]], immune_test[, 4], fn_list)
+VNT_df = as.data.frame(t)
+
+for (i in 1:NROW(VNT_df)){
+  rownames(VNT_df)[i] <- paste0("Dose Group: ", i) 
+}
+colnames(VNT_df) <- c("MEAN        SD         IQR        MEDIAN")
+VNT_df
+
+plot(immune_test$IgGpre, immune_test$IgG29, pch = 16, xlab = "Log Immunoglobulin G Prior to Inoculation",
+     ylab = "Log Immunoglobulin G 29 Days After Inoculation") 
+abline(lm(immune_test$IgG29 ~ immune_test$IgGpre), lwd = 2, col = "firebrick")
+
+plot(immune_test$IgG29, immune_test$VNT, pch = 16, ylab = "Virus Neutralizing Titers",
+     xlab = "Log Immunoglobulin G 29 Days After Inoculation") 
+abline(lm(immune_test$VNT ~ immune_test$IgG29), lwd = 2, col = "blue")
+
+model = lm(data = immune_test, VNT ~ IgG29)
+# Confidence Intervals
+confint(model, level = .99)
+
+x = seq(min(immune_test$IgG29), max(immune_test$IgG29), .01)
+mypoints = data.frame(IgG29 = x)
+
+plot(immune_test$IgG29, immune_test$VNT, pch = 16, ylab = "Virus Neutralizing Titers",
+     xlab = "Log Immunoglobulin G 29 Days After Inoculation", 
+     main = "VNT vs IgG29 With 95% Confidence Intervals") 
+myCI = predict(model, newdata = mypoints, interval = "confidence")
+lines(x, myCI[, 2], col = "purple")
+lines(x, myCI[, 3], col = "purple")
+lines(x, myCI[, 1], col = "blue", lwd = 2)
+
+
+m = aov(IgG29 ~ as.factor(dose), data = immune_test)
+summary(m)
+# We can conclude from the analysis of variance test that the coefficents of effects for different doses,
+# on Virus Neutralizing Titers, are jointly significant. In other words, the means of VNT per each dose 
+# group are signficantly different from each other. We are told this information through our F Value,
+# which is essentially the ratio of the between-group variance against the within-group variance 
+# in our model. 
+confint(m, level = .95)
+library(sqldf)
+ans = sqldf("
+      SELECT dose, avg(IgG29) 
+      FROM immune_test
+      GROUP BY dose
+      ")
+print(ans)
+# The greatest log concentration seems to belong to dose group 4, at 4.239330. 
+# It's 95% Confindence Interval Values are (0.7847145, 1.1755480), with regards to its effect on 
+# Log Immunoglobulin G 29 Days After Inoculation.
+
+# Running a boxplot regression with Confindence Intervals required that I converted "dose" 
+# to a numeric value.
+
+immune_test$dose = as.numeric(immune_test$dose)
+x = seq(0, 6, .01)
+mypoints = data.frame(dose = x)
+m = lm(IgG29 ~ dose, data = immune_test)
+
+boxplot(IgG29 ~ dose, data = immune_test, col = "darkorange", xlab = "Dose Groups", 
+        ylab = "Log Immunoglobulin G 29 Days After Inoculation")
+myCI = predict(m, newdata = mypoints, interval = "confidence")
+abline(m, lty = 2, col = "darkblue", lwd = 2)
+lines(x, myCI[, 2], col = "purple")
+lines(x, myCI[, 3], col = "purple")
+
+with(immune_test, t.test(IgG29[dose == 4], IgGpre[dose == 4]))
+# Yes it is signficantly different. 
+
+diff = sqldf("SELECT IgG29 - IgGpre
+      FROM immune_test
+      WHERE dose = 4")
+# Subtracting the baseline data from the IgPGpre data in the group 4 dose condition. 
+diff
+mean(diff$`IgG29 - IgGpre`)
+# The mean of the difference is 3.570095, the 95% CI, in the above t-test, is (3.244909, 3.895281). 
+names(diff) <- c("difference")
+
+# Attaching Dose Value to the Data Frame, and using a rudimentry method to attach '4' to every row value
+diff = sqldf("
+      SELECT *, 
+      (CASE difference
+      WHEN 100000 THEN 'No Comment'
+      ELSE '4'
+      END) 
+      AS 'Dose'
+      FROM diff
+      ")
+diff
+# Here is the data frame, corresponding to all of the dose values and there respective 'IgG29 - IgGpre' 
+# values. 
+
+plot(diff$difference, type = "o", xlab = "Difference by Dose 4 Observation", 
+     ylab = "(Immunoglobulin G 29 Days After -- Immunoglobulin G Prior)", cex.lab = .8, 
+     col = "blue", lwd = 2)
+
+expected_VNT = sqldf("
+                     SELECT avg(VNT) Expected_VNT
+                     FROM immune_test
+                     WHERE dose = 4
+                     ")
+expected_VNT
+mean(diff$difference)
+# Using a lgG concentration of 3.570095: From the Excel Sheet 34 in the control and 2 in 
+# the Treatment got the disease. 
+
+agrestiCaffo <- function(x1,n1,x2,n2,alpha=.05) {
+  #
+  # The Agresti-Coull proportion estimate with alpha = .05
+  #
+
+  zCrit       <- qnorm(1-alpha/2);
+  
+  pHat1       <- (x1)/(n1);
+  pPrime1     <- (x1+1)/(n1+2);
+  pPrimeV1    <-  (pPrime1*(1-pPrime1)/(n1+2));
+  pHat2       <- (x2)/(n2);
+  pPrime2     <- (x2+1)/(n2+2);
+  pPrimeV2    <- (pPrime2*(1-pPrime2)/(n2+2));
+  pPrimeSD    <- sqrt(pPrimeV1+pPrimeV2);
+  lCI         <- pPrime1-pPrime2 - zCrit*pPrimeSD;
+  uCI         <- pPrime1-pPrime2 + zCrit*pPrimeSD;
+  zScore      <- (pPrime1-pPrime2)/pPrimeSD;
+  
+  pValue      <- (1-pnorm(abs(zScore)))*2;
+  pValueGgtP  <- (1-pnorm(zScore))
+  
+  myParms          <- list()
+  
+  myParms$zCrit    <- zCrit;
+  myParms$pHat1    <- pHat1;
+  myParms$pPrime1  <- pPrime1;   
+  myParms$pHat2    <- pHat2;
+  myParms$pPrime2  <- pPrime2; 
+  myParms$deltaP   <- pHat1-pHat2;
+  myParms$lower    <- lCI;
+  myParms$upper    <- uCI;
+  myParms$pValue   <- pValue;
+  myParms$pValueGgtP  <- pValueGgtP;
+  return(myParms)
+}
+agrestiCaffo(34/36, 34, 2/36, 2)
+
+
+agrestiCoull <- function(x,n,alpha = .05) {
+  #
+  # The Agresti-Coull proportion estimate with alpha = .05
+  #
+
+  zCrit       <- qnorm(1-alpha/2)
+  
+  pHat        <- (x)/(n)
+  pPrime      <- (x+2)/(n+4)
+  pPrimeSD    <- sqrt(pPrime*(1-pPrime)/(n+4))
+  lCI         <- pPrime - zCrit*pPrimeSD;
+  uCI         <- pPrime + zCrit*pPrimeSD;
+  
+  lCI[lCI<0]  <-0;
+  uCI[uCI>1]  <-1;
+  
+  myParms          <- list()
+  
+  myParms$zCrit    <- zCrit;
+  myParms$pHat     <- pHat;
+  myParms$pPrime   <- pPrime;   
+  myParms$lower    <- lCI;
+  myParms$upper    <- uCI;
+  
+  return(myParms)
+}
+
+dose_4_data = sqldf("SELECT IgG29 
+                    FROM immune_test
+                    WHERE dose = 4")
+
+not_dose_4_data = sqldf("SELECT IgGpre 
+                        FROM immune_test
+                        WHERE dose != 4")
+mean(dose_4_data$IgG29)
+mean(not_dose_4_data$IgGpre)
+# Yes there is a significant difference between the post 29 day data in dose 4 and the 
+# pre inoculation data in the rest of the dose categories. 
+
+
+# Second bonus question solved through k-clustering means. 
+library(dplyr)
+immune_test %>% select(-c(dose)) %>% kmeans(centers = 5) -> kcluster
+immune_test_cluster$dose = as.factor(immune_test_cluster$dose)
+immune_test_cluster <- data.frame(immune_test, cluster=factor(kcluster$cluster))
+ggplot(immune_test_cluster, aes(x=IgG29, y=VNT, color=cluster, 
+    shape=as.factor(dose))) + geom_point()
+```
+
