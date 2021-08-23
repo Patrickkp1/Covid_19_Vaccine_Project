@@ -1,1 +1,1 @@
-# Covid_19_Vaccine_Project
+# MATH 560 Vaccine Efficacy Project
